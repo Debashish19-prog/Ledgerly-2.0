@@ -139,15 +139,41 @@ Eight tables, all linked to `users` with `ON DELETE CASCADE`:
 
 Amounts use `DECIMAL(14,2)` so money never suffers floating-point rounding.
 
-## Deploying (free options)
+## Deploying to Vercel (+ Aiven MySQL)
 
-The Express server also serves the built React app, so you deploy **one web service + one MySQL database**:
+Vercel serves the React build as static files and runs the Express API as a serverless function (`api/index.js`, configured in `vercel.json`). Vercel doesn't host MySQL, so use a free hosted MySQL such as Aiven (step 1 below).
 
-1. **MySQL:** create a free MySQL database on a hosted provider such as [Aiven](https://aiven.io/mysql) or [TiDB Cloud Serverless](https://tidbcloud.com) (MySQL-compatible). Note the host, port, user, password and database name, and set `DB_SSL=true`.
-2. **App:** create a Web Service on [Render](https://render.com) from your GitHub repo:
-   - Build command: `npm run build`
+1. Create the Aiven MySQL database (step 1 of the next section) and download its CA certificate.
+2. In Vercel: **Add New → Project**, import the GitHub repo, and leave the build settings as they are. `vercel.json` sets the install, build and output commands.
+3. Before deploying, add the environment variables from the table in the next section. `NODE_ENV` isn't needed; Vercel sets it.
+4. Deploy. The build runs `db:migrate` (creates the tables), then builds React. Open the `.vercel.app` URL and sign up.
+
+## Deploying for free (Render + Aiven MySQL)
+
+The Express server also serves the built React app, so you deploy **one web service + one MySQL database**.
+
+1. **Database (Aiven):** sign up at https://aiven.io, create a **MySQL** service on the **Free** plan, and wait until it shows *Running*. From its *Overview* page copy the host, port, user (`avnadmin`), password and database (`defaultdb`), and download the **CA certificate**.
+2. **App (Render):** at https://render.com choose **New → Web Service**, connect your GitHub repo, and set:
+   - Runtime: **Node**
+   - Build command: `npm run build && npm run db:migrate`
    - Start command: `npm start`
-   - Environment variables: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL=true`, `JWT_SECRET` (`openssl rand -base64 32`), `NODE_ENV=production`
-3. Run the migration once against the hosted database from your computer: put the same `DB_*` values in `backend/.env` and run `npm run db:migrate`.
+   - Instance type: **Free**
+3. **Environment variables** (on the same Render page):
 
-Free tiers change over time, so check each provider's current limits. Render's free web services sleep when idle, which makes the first request after a while slow.
+   | Key | Value |
+   | --- | --- |
+   | `DB_HOST` | Aiven host |
+   | `DB_PORT` | Aiven port |
+   | `DB_USER` | `avnadmin` |
+   | `DB_PASSWORD` | Aiven password |
+   | `DB_NAME` | `defaultdb` |
+   | `DB_SSL` | `true` |
+   | `DB_SSL_CA` | the full contents of the downloaded `ca.pem` |
+   | `JWT_SECRET` | output of `openssl rand -base64 32` |
+   | `NODE_ENV` | `production` |
+
+4. Click **Deploy**. The build creates the tables; when the status shows *Live*, open the `https://<name>.onrender.com` link and sign up.
+
+To load the demo data into the hosted database, run `npm run db:seed` locally with the same `DB_*` values set in your terminal.
+
+Free tiers change, so check each provider's current limits. Render's free web services sleep after inactivity, so the first visit after a while can take up to a minute.

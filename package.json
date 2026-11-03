@@ -11,5 +11,6 @@
     "db:seed": "npm --prefix backend run db:seed",
     "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install",
     "start": "npm --prefix backend start"
-  }
+  },
+  "type": "module"
 }

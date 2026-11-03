@@ -1,14 +1,25 @@
 import mysql from "mysql2/promise";
 import "dotenv/config";
 
+/**
+ * TLS settings for hosted MySQL. Providers with their own certificate authority
+ * (e.g. Aiven) need its CA certificate in DB_SSL_CA (PEM text; "\n" escapes are allowed).
+ */
+export function sslOptions() {
+  if (process.env.DB_SSL !== "true") return undefined;
+  const ca = process.env.DB_SSL_CA?.replace(/\\n/g, "\n");
+  return ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true };
+}
+
 export const pool = mysql.createPool({
   host: process.env.DB_HOST ?? "localhost",
   port: Number(process.env.DB_PORT ?? 3306),
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME ?? "expense_tracker",
-  ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: true } : undefined,
-  connectionLimit: 10,
+  ssl: sslOptions(),
+  // Serverless platforms (Vercel) run many small instances, so keep each pool small there.
+  connectionLimit: process.env.VERCEL ? 2 : 10,
   // Return DECIMAL columns as numbers and DATE columns as "YYYY-MM-DD" strings.
   decimalNumbers: true,
   dateStrings: true,
